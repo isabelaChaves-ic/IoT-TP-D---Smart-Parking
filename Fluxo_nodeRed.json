@@ -1,0 +1,938 @@
+[
+    {
+        "id": "46e94431b9110486",
+        "type": "tab",
+        "label": "version2_PROJETO - Smart Parking",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "017c8c99866838f8",
+        "type": "ui_form",
+        "z": "46e94431b9110486",
+        "name": "",
+        "label": "Forms_Entrada",
+        "group": "e550e71b628cbe86",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "options": [
+            {
+                "label": "Nome",
+                "value": "nome",
+                "type": "text",
+                "required": true,
+                "rows": null
+            },
+            {
+                "label": "Modelo do veículo",
+                "value": "modelo",
+                "type": "text",
+                "required": true,
+                "rows": null
+            },
+            {
+                "label": "Sexo",
+                "value": "sexo",
+                "type": "text",
+                "required": false,
+                "rows": null
+            },
+            {
+                "label": "Idade",
+                "value": "idade",
+                "type": "number",
+                "required": false,
+                "rows": null
+            },
+            {
+                "label": "Setor (1 ou 2)",
+                "value": "setor",
+                "type": "number",
+                "required": true,
+                "rows": null
+            },
+            {
+                "label": "Vaga (0 a 4)",
+                "value": "vaga",
+                "type": "number",
+                "required": true,
+                "rows": null
+            },
+            {
+                "label": "Valor pago (€)",
+                "value": "valorPago",
+                "type": "text",
+                "required": true,
+                "rows": null
+            }
+        ],
+        "formValue": {
+            "nome": "",
+            "modelo": "",
+            "sexo": "",
+            "idade": "",
+            "setor": "",
+            "vaga": "",
+            "valorPago": ""
+        },
+        "payload": "",
+        "submit": "submit",
+        "cancel": "cancel",
+        "topic": "topic",
+        "topicType": "msg",
+        "splitLayout": "",
+        "className": "",
+        "x": 1220,
+        "y": 1680,
+        "wires": [
+            [
+                "f31ecdf4b108d71a",
+                "9d4787233972aa17"
+            ]
+        ]
+    },
+    {
+        "id": "f31ecdf4b108d71a",
+        "type": "function",
+        "z": "46e94431b9110486",
+        "name": "processarEntrada(motorista)",
+        "func": "let dados = msg.payload;\nlet setorStr = \"setor\" + String(dados.setor);\n\n// Obter vetor de vagas\nlet vagas = flow.get(setorStr) || [0, 0, 0, 0, 0];\nlet vagaIndex = parseInt(dados.vaga);\nlet vagaJaOcupada = vagas[vagaIndex] === 1;\n\n// Se vaga está livre, marcar como ocupada\nif (!vagaJaOcupada) {\n  vagas[vagaIndex] = 1;\n  flow.set(setorStr, vagas);\n}\n\n// Verificar lotação dos setores\nlet setores = [\"setor1\", \"setor2\"];\nlet alerta = [];\nfor (let s of setores) {\n  let v = flow.get(s) || [0, 0, 0, 0, 0];\n  if (v.every(x => x === 1)) {\n    alerta.push(`⚠ ${s.toUpperCase()} LOTADO`);\n  }\n}\n\n// Coleta dos dados do formulário\nlet nome = dados.nome || \"desconhecido\";\nlet modelo = dados.modelo || dados[\"modelo do veículo\"] || \"não informado\";\nlet sexo = dados.sexo || \"não informado\";\nlet valor = parseFloat(dados.valorPago || dados[\"valor pago\"] || 0);\nlet idade = parseInt(dados.idade || 0);\n\n// Mensagem para o histórico\nlet mensagemStatus = vagaJaOcupada\n  ? `Vaga ${vagaIndex} do ${setorStr} já está ocupada!`\n  : `Vaga ${vagaIndex} do ${setorStr} inserida!`;\n\nlet msgStatus = {\n  payload: {\n    texto: mensagemStatus,\n    setor: setorStr,\n    vaga: vagaIndex\n  }\n};\n\n// Payload para o InfluxDB (somente se vaga estiver livre)\nlet dadosMotorista = vagaJaOcupada ? null : {\n  measurement: \"motoristas\",\n  tags: {\n  nome: nome,\n  sexo: sexo,\n  modelo: modelo,\n  setor: setorStr,\n  vaga: String(vagaIndex)\n},\nfields: {\n  idade: parseInt(idade),\n  valorPago: parseFloat(valor)\n}\n};\n\n// Dados visuais para o dashboard\nlet msgVisual = {\n  payload: vagas,\n  setor: setorStr\n};\n\nlet alertaMsg = alerta.length > 0 ? { payload: alerta.join(\" | \") } : null;\n\n// Enviar para Influx (se for válida), alerta, visual e histórico\nreturn [\n  dadosMotorista ? { payload: [dadosMotorista] } : null,\n  alertaMsg,\n  msgVisual,\n  msgStatus\n];\n",
+        "outputs": 4,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1460,
+        "y": 1760,
+        "wires": [
+            [
+                "791d69b223b5c271",
+                "751644a98aebfcf8"
+            ],
+            [
+                "bfdcf5dc48a452de"
+            ],
+            [
+                "519ab445c8b176ba"
+            ],
+            [
+                "fb4bc9396cb5a0c2"
+            ]
+        ]
+    },
+    {
+        "id": "668cbb905cea22e0",
+        "type": "ui_form",
+        "z": "46e94431b9110486",
+        "name": "",
+        "label": "Forms_Saida",
+        "group": "af8ea86de01d4630",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "options": [
+            {
+                "label": "Setor",
+                "value": "setor",
+                "type": "number",
+                "required": true,
+                "rows": null
+            },
+            {
+                "label": "Vaga",
+                "value": "vaga",
+                "type": "number",
+                "required": true,
+                "rows": null
+            }
+        ],
+        "formValue": {
+            "setor": "",
+            "vaga": ""
+        },
+        "payload": "",
+        "submit": "submit",
+        "cancel": "cancel",
+        "topic": "topic",
+        "topicType": "msg",
+        "splitLayout": "",
+        "className": "",
+        "x": 690,
+        "y": 1820,
+        "wires": [
+            [
+                "1b6163d67f3ff9cf",
+                "fec57a39bcfb6119"
+            ]
+        ]
+    },
+    {
+        "id": "fec57a39bcfb6119",
+        "type": "function",
+        "z": "46e94431b9110486",
+        "name": "liberarVaga",
+        "func": "let dados = msg.payload;\n\n// Validação\nif (typeof dados.setor !== \"number\" || typeof dados.vaga !== \"number\") {\n    node.error(\"Dados inválidos no payload:\", msg.payload);\n    return [null, null, null];\n}\n\nlet setorStr = \"setor\" + String(dados.setor);\n\n// Recupera ou inicializa as vagas do setor\nlet vagas = flow.get(setorStr) || [0, 0, 0, 0, 0];\n\n// Libera a vaga\nvagas[dados.vaga] = 0;\nflow.set(setorStr, vagas);\n\n// Mensagem de confirmação\nlet msgStatus = { payload: `✅ Vaga ${dados.vaga} do ${setorStr} liberada!` };\n\n// Alerta se todas as vagas do setor estão livres\nlet msgAlerta = null;\nif (vagas.every(v => v === 0)) {\n    msgAlerta = { payload: `🟢 Todas as vagas do ${setorStr} estão livres.` };\n}\n\n// Mensagem para atualizar o visual do dashboard\nlet msgVisual = {\n    payload: vagas,\n    setor: setorStr\n};\n\n// Atualiza o histórico após a liberação da vaga\nlet msgHistorico = {\n    payload: {\n        setor: setorStr,\n        vaga: dados.vaga,\n        status: \"livre\",\n        texto: `Vaga ${dados.vaga} do ${setorStr} liberada!`\n    }\n};\n\n// Retornar as mensagens necessárias para as saídas\nreturn [\n    msgStatus,       // Confirmação da liberação da vaga\n    msgAlerta,       // Alerta se todas as vagas estiverem livres\n    msgVisual,       // Atualização visual das vagas\n    msgHistorico     // Atualização do histórico\n];\n",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1010,
+        "y": 1840,
+        "wires": [
+            [
+                "4ee4a550155d4ca0",
+                "791d69b223b5c271",
+                "bf7677596e22378f",
+                "fb4bc9396cb5a0c2"
+            ],
+            [
+                "954e0da5bca06ef0"
+            ]
+        ]
+    },
+    {
+        "id": "519ab445c8b176ba",
+        "type": "debug",
+        "z": "46e94431b9110486",
+        "name": "debug 39",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1780,
+        "y": 1740,
+        "wires": []
+    },
+    {
+        "id": "4ee4a550155d4ca0",
+        "type": "debug",
+        "z": "46e94431b9110486",
+        "name": "debug 40",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1500,
+        "y": 1980,
+        "wires": []
+    },
+    {
+        "id": "f823d49e01b433a2",
+        "type": "ui_dropdown",
+        "z": "46e94431b9110486",
+        "name": "",
+        "label": "Selecionar setor",
+        "tooltip": "",
+        "place": "Select option",
+        "group": "07a46d2b30ea852d",
+        "order": 3,
+        "width": "0",
+        "height": "0",
+        "passthru": true,
+        "multiple": false,
+        "options": [
+            {
+                "label": "",
+                "value": "setor1",
+                "type": "str"
+            },
+            {
+                "label": "",
+                "value": "setor2",
+                "type": "str"
+            }
+        ],
+        "payload": "",
+        "topic": "topic",
+        "topicType": "msg",
+        "className": "",
+        "x": 580.3460083007812,
+        "y": 2115.34033203125,
+        "wires": [
+            [
+                "a8cb6319f31f2532"
+            ]
+        ]
+    },
+    {
+        "id": "a8cb6319f31f2532",
+        "type": "function",
+        "z": "46e94431b9110486",
+        "name": "listarVagasLivres",
+        "func": "let setorStr = String(msg.payload);  // já vem completo\n\nlet vagas = flow.get(setorStr) || [0, 0, 0, 0, 0];\nlet livres = [];\n\nfor (let i = 0; i < vagas.length; i++) {\n    if (vagas[i] === 0) {\n        livres.push(i);\n    }\n}\nmsg.payload = {\n    \"setor\":setorStr,\n    \"vagas\":vagas\n}\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 790.3460083007812,
+        "y": 2115.34033203125,
+        "wires": [
+            [
+                "1642dafd5ad9fa86",
+                "8deeb2406adafc96"
+            ]
+        ]
+    },
+    {
+        "id": "2954f64c3e606318",
+        "type": "ui_text",
+        "z": "46e94431b9110486",
+        "group": "07a46d2b30ea852d",
+        "order": 4,
+        "width": "0",
+        "height": "0",
+        "name": "",
+        "label": "vagasLivres",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 1190.3460083007812,
+        "y": 2155.34033203125,
+        "wires": []
+    },
+    {
+        "id": "1642dafd5ad9fa86",
+        "type": "debug",
+        "z": "46e94431b9110486",
+        "name": "debug 41",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 980.3460083007812,
+        "y": 2195.34033203125,
+        "wires": []
+    },
+    {
+        "id": "9d4787233972aa17",
+        "type": "debug",
+        "z": "46e94431b9110486",
+        "name": "debug 42",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1420,
+        "y": 1840,
+        "wires": []
+    },
+    {
+        "id": "8667f2584a540151",
+        "type": "mqtt in",
+        "z": "46e94431b9110486",
+        "name": "Receber Vaga",
+        "topic": "vaga/#",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "2101062c1d1b9fb8",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 450,
+        "y": 1380,
+        "wires": [
+            [
+                "6bea048824e722d0",
+                "8d80825a768d9ada"
+            ]
+        ]
+    },
+    {
+        "id": "bfdcf5dc48a452de",
+        "type": "ui_toast",
+        "z": "46e94431b9110486",
+        "position": "dialog",
+        "displayTime": "5",
+        "highlight": "",
+        "sendall": true,
+        "outputs": 1,
+        "ok": "OK",
+        "cancel": "",
+        "raw": false,
+        "className": "",
+        "topic": "",
+        "name": "Alerta Ocupação",
+        "x": 1790,
+        "y": 1660,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "fb4bc9396cb5a0c2",
+        "type": "function",
+        "z": "46e94431b9110486",
+        "name": "gerarTimeline",
+        "func": "// Obter horário atual\nlet agora = new Date();\nlet hora = agora.toLocaleTimeString(\"pt-BR\", { hour12: false }); // Ex: 14:35:08\n\n// Corrigir a linha caso o payload seja um objeto\nlet linha = typeof msg.payload === 'string'\n    ? msg.payload\n    : msg.payload.texto || (msg.payload.status === \"livre\"\n        ? `Vaga ${msg.payload.vaga} do ${msg.payload.setor} liberada!`\n        : `Vaga ${msg.payload.vaga} do ${msg.payload.setor} inserida!`);\n\nlet historico = flow.get(\"timeline\") || [];\n\n// Adiciona nova entrada ao topo com horário\nhistorico.unshift({ hora: hora, texto: linha });\n\n// Limita a 10 eventos no histórico\nif (historico.length > 10) {\n    historico = historico.slice(0, 10);\n}\nflow.set(\"timeline\", historico);\n\n// Gerar HTML estilizado para exibir no painel\nlet html = `\n<div style=\"font-family: monospace; font-size: 14px; line-height: 1.6em;\">\n    ${historico.map(evento => {\n    let estilo = \"\";\n    let icone = \"\";\n        if (/liberad[oa]/i.test(evento.texto)) {\n            estilo = \"color: green;\";\n            icone = \"✅\";\n        } else if (/já (está|esta) ocupad[oa]/i.test(evento.texto)) {\n            estilo = \"color: orange; font-weight: bold;\";\n            icone = \"⚠️\";\n        } else if (/ocupad[oa]/i.test(evento.texto)) {\n            estilo = \"color: dodgerblue;\";\n            icone = \"🚗\";\n        } else if (/⚠️/.test(evento.texto) || /lotado/i.test(evento.texto)) {\n            estilo = \"color: red; font-weight: bold;\";\n            icone = \"⚠️\";\n        } else {\n            estilo = \"color: #555;\";\n            icone = \"ℹ️\";\n        }\n    return `<div style=\"${estilo}\">[${evento.hora}] ${icone} ${evento.texto}</div>`;\n}).join(\"\")}\n</div>\n`;\n\n// Preparar gráfico de entradas por setor\nlet entradasSetor1 = [];\nlet entradasSetor2 = [];\n\nif (msg.payload && msg.payload.setor && msg.payload.vagas) {\n    let setor = msg.payload.setor;\n    let vagas = msg.payload.vagas;\n\n    // Adicionar entradas nos gráficos por setor\n    for (let i = 0; i < vagas.length; i++) {\n        if (vagas[i] === 1) {\n            if (setor === \"setor1\") {\n                entradasSetor1.push({ x: hora, y: 1 });\n            } else if (setor === \"setor2\") {\n                entradasSetor2.push({ x: hora, y: 1 });\n            }\n        }\n    }\n}\n\n// Agrupar por hora\nconst agrupar = (dados) => {\n    let contagem = {};\n    dados.forEach(e => {\n        contagem[e.x] = (contagem[e.x] || 0) + 1;\n    });\n    return Object.entries(contagem).map(([x, y]) => ({ x, y }));\n};\n\nlet dadosOrdenados1 = agrupar(entradasSetor1).sort((a, b) => a.x.localeCompare(b.x));\nlet dadosOrdenados2 = agrupar(entradasSetor2).sort((a, b) => a.x.localeCompare(b.x));\n\nlet grafico = {\n    series: [\"Setor 1\", \"Setor 2\"],\n    data: [dadosOrdenados1, dadosOrdenados2],\n    labels: dadosOrdenados1.map(d => d.x)\n};\n\n// Enviar para: histórico visual (ui_template) e gráfico (ui_chart)\nreturn [\n    { payload: html },\n    { payload: [grafico] }\n];\n",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1700,
+        "y": 1880,
+        "wires": [
+            [
+                "e22c3f760e45d097",
+                "4892c9436494e769"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "e22c3f760e45d097",
+        "type": "ui_template",
+        "z": "46e94431b9110486",
+        "group": "264e562289d4ddf7",
+        "name": "Histórico Estacionamento",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "format": "<div style=\"max-height: 250px; overflow-y: auto; padding: 5px;\" ng-bind-html=\"msg.payload\"></div>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 1970,
+        "y": 1940,
+        "wires": [
+            [
+                "dc08504d716cc1e5"
+            ]
+        ]
+    },
+    {
+        "id": "6bea048824e722d0",
+        "type": "switch",
+        "z": "46e94431b9110486",
+        "name": "Separar por setor",
+        "property": "topic",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "regex",
+                "v": "^vaga/setor1/",
+                "vt": "str",
+                "case": false
+            },
+            {
+                "t": "regex",
+                "v": "^vaga/setor2/",
+                "vt": "str",
+                "case": false
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 2,
+        "x": 670,
+        "y": 1380,
+        "wires": [
+            [
+                "b63d358f34a3a551"
+            ],
+            [
+                "bf8280997b389f71"
+            ]
+        ]
+    },
+    {
+        "id": "b63d358f34a3a551",
+        "type": "function",
+        "z": "46e94431b9110486",
+        "name": "Atualizar vagas setor 1",
+        "func": "let dados = msg.payload;\n\nif (!dados.setor || typeof dados.vaga === 'undefined' || !dados.status) {\n  return null; // Se faltar algo, ignora\n}\n\nlet setorStr = \"setor\" + dados.setor;\n\n// Inicializa as vagas se ainda não existirem\nlet vagas = flow.get(setorStr) || [0, 0, 0, 0, 0];\n\n// Atualiza o status da vaga\nvagas[dados.vaga] = (dados.status === \"ocupado\") ? 1 : 0;\n\n// Salva no contexto\nflow.set(setorStr, vagas);\n\n// Retorna mensagem para exibir no dashboard\nmsg.payload = `${setorStr} - vaga ${dados.vaga} ${dados.status}`;\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 940,
+        "y": 1380,
+        "wires": [
+            [
+                "4f1b8dfa00faac9e",
+                "791d69b223b5c271"
+            ]
+        ]
+    },
+    {
+        "id": "bf8280997b389f71",
+        "type": "function",
+        "z": "46e94431b9110486",
+        "name": "Atualizar vagas setor 2",
+        "func": "let dados = msg.payload;\n\nif (!dados.setor || typeof dados.vaga === 'undefined' || !dados.status) {\n    return null; // Se faltar algo, ignora\n}\n\nlet setorStr = \"setor\" + dados.setor;\n\n// Inicializa as vagas se ainda não existirem\nlet vagas = flow.get(setorStr) || [0, 0, 0, 0, 0];\n\n// Atualiza o status da vaga\nvagas[dados.vaga] = (dados.status === \"ocupado\") ? 1 : 0;\n\n// Salva no contexto\nflow.set(setorStr, vagas);\n\n// Retorna mensagem para exibir no dashboard\nmsg.payload = `${setorStr} - vaga ${dados.vaga} ${dados.status}`;\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 680,
+        "y": 1460,
+        "wires": [
+            [
+                "bf7677596e22378f"
+            ]
+        ]
+    },
+    {
+        "id": "4f1b8dfa00faac9e",
+        "type": "debug",
+        "z": "46e94431b9110486",
+        "name": "debug 44",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1140,
+        "y": 1340,
+        "wires": []
+    },
+    {
+        "id": "c83585f8a6f31734",
+        "type": "debug",
+        "z": "46e94431b9110486",
+        "name": "debug 45",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 960,
+        "y": 1460,
+        "wires": []
+    },
+    {
+        "id": "f086e4839bcb7de2",
+        "type": "mqtt in",
+        "z": "46e94431b9110486",
+        "name": "MQTT liberar vaga",
+        "topic": "vaga/#",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "720ba9aaab6a0164",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 310,
+        "y": 1680,
+        "wires": [
+            [
+                "1b6163d67f3ff9cf",
+                "8d80825a768d9ada",
+                "2c463c1769df3f9a"
+            ]
+        ]
+    },
+    {
+        "id": "1b6163d67f3ff9cf",
+        "type": "switch",
+        "z": "46e94431b9110486",
+        "name": "filtarr apenas livre",
+        "property": "payload",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "\"livre\"",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 750,
+        "y": 1680,
+        "wires": [
+            [
+                "842c8b2c4c2116f0"
+            ]
+        ]
+    },
+    {
+        "id": "842c8b2c4c2116f0",
+        "type": "function",
+        "z": "46e94431b9110486",
+        "name": "Extrair setor e vaga",
+        "func": "let topicos = msg.topic.split(\"/\"); // [\"vaga\", \"setor1\", \"vaga0\"]\nlet setor = parseInt(topicos[1].replace(\"setor\", \"\"));\nlet vaga = parseInt(topicos[2].replace(\"vaga\", \"\"));\n\nmsg.payload = { setor, vaga };\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 850,
+        "y": 1740,
+        "wires": [
+            [
+                "fec57a39bcfb6119"
+            ]
+        ]
+    },
+    {
+        "id": "954e0da5bca06ef0",
+        "type": "debug",
+        "z": "46e94431b9110486",
+        "name": "debug 46",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1260,
+        "y": 2000,
+        "wires": []
+    },
+    {
+        "id": "bf7677596e22378f",
+        "type": "function",
+        "z": "46e94431b9110486",
+        "name": "Formatar visual setor 2",
+        "func": "let vagas = msg.payload;\nlet setor = msg.setor || \"setor?\";\nlet titulo = setor === \"setor1\" ? \"🔷 SETOR 1\" : \"🔶 SETOR 2\";\n\nlet texto = `${titulo}<br><br>`;\nfor (let i = 0; i < 5; i++) {\n    let status = vagas[i] === 1 ? \"❌ OCUPADA\" : \"✅ LIVRE\";\n    texto += `Vaga ${i}: ${status}<br>`;\n}\n\nmsg.payload = texto;\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 960,
+        "y": 1560,
+        "wires": [
+            [
+                "c83585f8a6f31734"
+            ]
+        ]
+    },
+    {
+        "id": "791d69b223b5c271",
+        "type": "function",
+        "z": "46e94431b9110486",
+        "name": "Formatar visual setor 1",
+        "func": "let vagas = msg.payload;\nlet setor = msg.setor || \"setor?\";\nlet titulo = setor === \"setor1\" ? \"🔷 SETOR 1\" : \"🔶 SETOR 2\";\n\nlet texto = `${titulo}<br><br>`;\nfor (let i = 0; i < 5; i++) {\n    let status = vagas[i] === 1 ? \"❌ OCUPADA\" : \"✅ LIVRE\";\n    texto += `Vaga ${i}: ${status}<br>`;\n}\n\nmsg.payload = texto;\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1240,
+        "y": 1500,
+        "wires": [
+            [
+                "eacf5b180eb91064"
+            ]
+        ]
+    },
+    {
+        "id": "4892c9436494e769",
+        "type": "debug",
+        "z": "46e94431b9110486",
+        "name": "debug 33",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1920,
+        "y": 1880,
+        "wires": []
+    },
+    {
+        "id": "eacf5b180eb91064",
+        "type": "debug",
+        "z": "46e94431b9110486",
+        "name": "debug 36",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1460,
+        "y": 1460,
+        "wires": []
+    },
+    {
+        "id": "dc08504d716cc1e5",
+        "type": "debug",
+        "z": "46e94431b9110486",
+        "name": "debug 37",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 2180,
+        "y": 1940,
+        "wires": []
+    },
+    {
+        "id": "8deeb2406adafc96",
+        "type": "function",
+        "z": "46e94431b9110486",
+        "name": "Formatar visual setor 2",
+        "func": "let vagas = msg.payload.vagas;\nlet setor = msg.payload.setor || \"setor?\";\nlet titulo = setor === \"setor1\" ? \"🔷 SETOR 1\" : \"🔶 SETOR 2\";\n\nlet texto = `${titulo}<br><br>`;\nfor (let i = 0; i < 5; i++) {\n    let status = vagas[i] === 1 ? \"❌ OCUPADA\" : \"✅ LIVRE\";\n    texto += `Vaga ${i}: ${status}<br>`;\n}\n\nmsg.payload = texto;\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 940,
+        "y": 2020,
+        "wires": [
+            [
+                "2954f64c3e606318"
+            ]
+        ]
+    },
+    {
+        "id": "8d80825a768d9ada",
+        "type": "function",
+        "z": "46e94431b9110486",
+        "name": "Selecionar Setor MQTT",
+        "func": "let topicos = msg.topic.split(\"/\"); // Ex: \"vaga/setor1/vaga0\"\nlet setor = topicos[1]; // setor1 ou setor2\n\nmsg.payload = setor;\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 590,
+        "y": 1920,
+        "wires": [
+            [
+                "a8cb6319f31f2532"
+            ]
+        ]
+    },
+    {
+        "id": "751644a98aebfcf8",
+        "type": "influxdb batch",
+        "z": "46e94431b9110486",
+        "influxdb": "0bcea23e09d769cf",
+        "precision": "",
+        "retentionPolicy": "",
+        "name": "influx batch",
+        "database": "database",
+        "precisionV18FluxV20": "ms",
+        "retentionPolicyV18Flux": "",
+        "org": "IoT - E",
+        "bucket": "smart_parking",
+        "x": 1950,
+        "y": 1800,
+        "wires": []
+    },
+    {
+        "id": "2c463c1769df3f9a",
+        "type": "debug",
+        "z": "46e94431b9110486",
+        "name": "debug 50",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 330,
+        "y": 1520,
+        "wires": []
+    },
+    {
+        "id": "01f84b0f763806e5",
+        "type": "debug",
+        "z": "46e94431b9110486",
+        "name": "debug 51",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1930,
+        "y": 1520,
+        "wires": []
+    },
+    {
+        "id": "6d7539384a0fd3ba",
+        "type": "comment",
+        "z": "46e94431b9110486",
+        "name": "query Influx",
+        "info": "from(bucket: \"smart_parking\")\n  |> range(start: 0)\n  |> filter(fn: (r) => r._measurement == \"motoristas\")\n",
+        "x": 1470,
+        "y": 1320,
+        "wires": []
+    },
+    {
+        "id": "e550e71b628cbe86",
+        "type": "ui_group",
+        "name": "Smart Parking Entrada",
+        "tab": "362aa25d957d9469",
+        "order": 1,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "af8ea86de01d4630",
+        "type": "ui_group",
+        "name": "Smart Parking Saída",
+        "tab": "362aa25d957d9469",
+        "order": 2,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "07a46d2b30ea852d",
+        "type": "ui_group",
+        "name": "Smart Parking Selecionar Setor",
+        "tab": "362aa25d957d9469",
+        "order": 3,
+        "disp": true,
+        "width": 7,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "2101062c1d1b9fb8",
+        "type": "mqtt-broker",
+        "name": "",
+        "broker": "broker.emqx.io",
+        "port": 1883,
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "264e562289d4ddf7",
+        "type": "ui_group",
+        "name": "Historico Grupo",
+        "tab": "362aa25d957d9469",
+        "order": 4,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "720ba9aaab6a0164",
+        "type": "mqtt-broker",
+        "name": "",
+        "broker": "broker.emqx.io",
+        "port": 1883,
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "0bcea23e09d769cf",
+        "type": "influxdb",
+        "hostname": "127.0.0.1",
+        "port": 8086,
+        "protocol": "http",
+        "database": "database",
+        "name": "",
+        "usetls": false,
+        "tls": "",
+        "influxdbVersion": "2.0",
+        "url": "http://localhost:8086",
+        "timeout": 10,
+        "rejectUnauthorized": true
+    },
+    {
+        "id": "362aa25d957d9469",
+        "type": "ui_tab",
+        "name": "PROJETO",
+        "icon": "dashboard",
+        "disabled": false,
+        "hidden": false
+    }
+]
