@@ -63,3 +63,11 @@ O projeto é composto pelos seguintes componentes:
 3. **Dashboard**:
     - Use o painel para preencher os dados do motorista e acompanhar a disponibilidade das vagas.
 
+
+## Equipe
+
+- **Membros da Equipe:**
+  - Nome: Isabela Chaves Pedroso | Número do Aluno: m321970
+  - Nome: Ruth da Silva Mendonça | Número do Aluno: m321979
+
+
